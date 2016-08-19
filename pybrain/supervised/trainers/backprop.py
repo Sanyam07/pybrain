@@ -8,7 +8,7 @@ from math import isnan
 from pybrain.supervised.trainers.trainer import Trainer
 from pybrain.utilities import fListToString
 from pybrain.auxiliary import GradientDescent
-
+import numpy as np
 
 class BackpropTrainer(Trainer):
     """Trainer that trains the parameters of a module according to a
@@ -17,7 +17,7 @@ class BackpropTrainer(Trainer):
 
     def __init__(self, module, dataset=None, learningrate=0.01, lrdecay=1.0,
                  momentum=0., verbose=False, batchlearning=False,
-                 weightdecay=0.):
+                 weightdecay=0., l1_penalty = 0., l2_penalty = 0.):
         """Create a BackpropTrainer to train the specified `module` on the
         specified `dataset`.
 
@@ -46,6 +46,8 @@ class BackpropTrainer(Trainer):
         self.descent.momentum = momentum
         self.descent.alphadecay = lrdecay
         self.descent.init(module.params)
+        self.l1_penalty = l1_penalty
+        self.l2_penalty = l2_penalty
 
     def train(self):
         """Train the associated module for one epoch."""
@@ -92,11 +94,13 @@ class BackpropTrainer(Trainer):
             outerr = target - self.module.outputbuffer[offset]
             if len(sample) > 2:
                 importance = sample[2]
-                error += 0.5 * dot(importance, outerr ** 2)
+                error += 0.5 * dot(importance, outerr ** 2) + self.l1_penalty * np.sum(np.abs(self.module.params)) \
+                                + self.l2_penalty * np.sum(self.module.params**2)
                 ponderation += sum(importance)
                 self.module.backActivate(outerr * importance)
             else:
-                error += 0.5 * sum(outerr ** 2)
+                error += 0.5 * sum(outerr ** 2) + self.l1_penalty * np.sum(np.abs(self.module.params)) \
+                                + self.l2_penalty * np.sum(self.module.params**2)
                 ponderation += len(target)
                 # FIXME: the next line keeps arac from producing NaNs. I don't
                 # know why that is, but somehow the __str__ method of the
